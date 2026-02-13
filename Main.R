@@ -1,5 +1,14 @@
 ### Aquatic Forecast Workflow ###
 # devtools::install_github("eco4cast/neon4cast")
+
+devtools::install_github('eco4cast/neon4cast')
+
+install.packages("biglm")
+
+devtools::install_version("rMR", version = "1.1.0")
+
+devtools::install_github('eco4cast/EFIstandards')
+
 library(tidyverse)
 library(neon4cast)
 library(lubridate)
