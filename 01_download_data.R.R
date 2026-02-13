@@ -1,8 +1,7 @@
-
 ##' Download Targets
 ##' @return data.frame in long format with days as rows, and time, site_id, variable, and observed as columns
 download_targets <- function(){
-  readr::read_csv("https://data.ecoforecast.org/neon4cast-targets/aquatics/aquatics-targets.csv.gz", guess_max = 1e6)
+  readr::read_csv("https://sdsc.osn.xsede.org/bio230014-bucket01/challenges/targets/project_id=neon4cast/duration=P1D/aquatics-targets.csv.gz", guess_max = 1e6)
 }
 
 ##' Download Site metadata
@@ -25,8 +24,8 @@ merge_met_past <- function(target){
   sites <- unique(target$site_id)
   
   ## temporary hack to remove a site that's mid-behaving
-  sites = sites[!(sites=="POSE")] 
-  target = target |> filter(site_id %in% sites)  
+  #  sites = sites[!(sites=="POSE")] 
+  #  target = target |> filter(site_id %in% sites)  
   
   ## grab air temperature from the historical forecast
   noaa_past <- df_past |> 
@@ -80,3 +79,6 @@ download_met_forecast <- function(forecast_date){
   
   return(met_future)
 }
+
+
+### OWNER
