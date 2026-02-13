@@ -62,6 +62,19 @@ download_met_forecast <- function(forecast_date){
   
   ## connect to data
   df_future <- neon4cast::noaa_stage2(start_date = as.character(noaa_date))
+  if (is.null(df_future) || nrow(df_future) == 0) {
+    warning(paste("No NOAA forecast data available for date:", noaa_date, 
+                  "Attempting to use earlier date..."))
+    # Try previous day if current day fails
+    noaa_date <- noaa_date - lubridate::days(1)
+    df_future <- neon4cast::noaa_stage2(start_date = as.character(noaa_date))
+  }
+  
+  ## filter available forecasts by date and variable
+  met_future <- df_future |> 
+    dplyr::filter(datetime >= lubridate::as_datetime(forecast_date), 
+                  variable == "air_temperature") |> 
+    dplyr::collect()
   
   ## filter available forecasts by date and variable
   met_future <- df_future |> 
