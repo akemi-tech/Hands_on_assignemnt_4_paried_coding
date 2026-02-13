@@ -5,9 +5,7 @@
 library(tidyverse)
 library(neon4cast)
 library(lubridate)
-if (!require("rMR", quietly = TRUE)) {
-  devtools::install_version("rMR", version = "1.1.0")
-}
+
 #devtools::install_version("rMR", version = "1.1.0")
 library(rMR)
 
