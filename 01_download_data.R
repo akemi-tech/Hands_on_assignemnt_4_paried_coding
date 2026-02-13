@@ -11,15 +11,55 @@ download_targets <- function(){
 
 ##' Download Site metadata
 ##' @return metadata dataframe
-download_site_meta <- function(){
-  tryCatch({
-    site_data <- readr::read_csv("https://raw.githubusercontent.com/eco4cast/neon4cast-targets/main/NEON_Field_Site_Metadata_20220412.csv") 
-    site_data %>% filter(as.integer(aquatics) == 1)
-  }, error = function(e) {
-    stop(paste("Failed to download site metadata:", e$message))
-  })
-}
+#download_site_meta <- function(){
+#  tryCatch({
+#    site_data <- readr::read_csv("https://raw.githubusercontent.com/eco4cast/neon4cast-targets/main/NEON_Field_Site_Metadata_20220412.csv") 
+#    site_data %>% filter(as.integer(aquatics) == 1)
+#  }, error = function(e) {
+#    stop(paste("Failed to download site metadata:", e$message))
+#  })
+#}
 
+download_met_forecast <- function(forecast_date){
+  
+  # We want NOAA "reference_datetime" typically from yesterday (and retry older)
+  noaa_date <- lubridate::as_date(forecast_date) - lubridate::days(1)
+  
+  get_stage2 <- function(d) {
+    tryCatch(
+      neon4cast::noaa_stage2(start_date = as.character(d)),
+      error = function(e) NULL
+    )
+  }
+  
+  df_future <- get_stage2(noaa_date)
+  
+  # Retry one more day back if missing
+  if (is.null(df_future) || nrow(df_future) == 0) {
+    warning(paste("No NOAA forecast drivers for", as.character(noaa_date),
+                  "- retrying", as.character(noaa_date - lubridate::days(1))))
+    noaa_date <- noaa_date - lubridate::days(1)
+    df_future <- get_stage2(noaa_date)
+  }
+  
+  # If still missing, fail gracefully with a clear message
+  if (is.null(df_future) || nrow(df_future) == 0) {
+    stop(paste("No NOAA forecast drivers available for", as.character(noaa_date),
+               "(and previous day). Try running later or check driver availability."))
+  }
+  
+  met_future <- df_future |>
+    dplyr::filter(datetime >= lubridate::as_datetime(forecast_date),
+                  variable == "air_temperature") |>
+    dplyr::collect() |>
+    mutate(datetime = lubridate::as_date(datetime)) |>
+    group_by(datetime, site__id, parameter) |>
+    summarize(air_temperature = mean(prediction), .groups = "drop") |>
+    select(datetime, site_id, air_temperature, parameter)
+  
+  return(met_future)
+}
+             
 
 ##' append historical meteorological data into target file
 ##' @param target targets dataframe
