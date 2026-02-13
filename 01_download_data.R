@@ -1,14 +1,23 @@
 ##' Download Targets
 ##' @return data.frame in long format with days as rows, and time, site_id, variable, and observed as columns
 download_targets <- function(){
-  readr::read_csv("https://sdsc.osn.xsede.org/bio230014-bucket01/challenges/targets/project_id=neon4cast/duration=P1D/aquatics-targets.csv.gz", guess_max = 1e6)
+  #readr::read_csv("https://sdsc.osn.xsede.org/bio230014-bucket01/challenges/targets/project_id=neon4cast/duration=P1D/aquatics-targets.csv.gz", guess_max = 1e6)
+  tryCatch({
+    readr::read_csv("https://sdsc.osn.xsede.org/bio230014-bucket01/challenges/targets/project_id=neon4cast/duration=P1D/aquatics-targets.csv.gz", guess_max = 1e6)
+  }, error = function(e) {
+    stop(paste("Failed to download targets:", e$message))
+  })
 }
 
 ##' Download Site metadata
 ##' @return metadata dataframe
 download_site_meta <- function(){
-  site_data <- readr::read_csv("https://raw.githubusercontent.com/eco4cast/neon4cast-targets/main/NEON_Field_Site_Metadata_20220412.csv") 
-  site_data %>% filter(as.integer(aquatics) == 1)
+  tryCatch({
+    site_data <- readr::read_csv("https://raw.githubusercontent.com/eco4cast/neon4cast-targets/main/NEON_Field_Site_Metadata_20220412.csv") 
+    site_data %>% filter(as.integer(aquatics) == 1)
+  }, error = function(e) {
+    stop(paste("Failed to download site metadata:", e$message))
+  })
 }
 
 
@@ -19,6 +28,12 @@ merge_met_past <- function(target){
   
   ## connect to data
   df_past <- neon4cast::noaa_stage3()
+  if (is.null(df_past) || nrow(df_past) == 0) {
+    warning("No NOAA historical data available, continuing with available target data only")
+    # Return target as-is without merging met data
+    return(target)
+  }
+  
   
   ## filter for site and variable
   sites <- unique(target$site_id)
