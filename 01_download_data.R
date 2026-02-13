@@ -1,65 +1,16 @@
 ##' Download Targets
 ##' @return data.frame in long format with days as rows, and time, site_id, variable, and observed as columns
 download_targets <- function(){
-  #readr::read_csv("https://sdsc.osn.xsede.org/bio230014-bucket01/challenges/targets/project_id=neon4cast/duration=P1D/aquatics-targets.csv.gz", guess_max = 1e6)
-  tryCatch({
-    readr::read_csv("https://sdsc.osn.xsede.org/bio230014-bucket01/challenges/targets/project_id=neon4cast/duration=P1D/aquatics-targets.csv.gz", guess_max = 1e6)
-  }, error = function(e) {
-    stop(paste("Failed to download targets:", e$message))
-  })
+  readr::read_csv("https://sdsc.osn.xsede.org/bio230014-bucket01/challenges/targets/project_id=neon4cast/duration=P1D/aquatics-targets.csv.gz", guess_max = 1e6)
 }
 
 ##' Download Site metadata
 ##' @return metadata dataframe
-#download_site_meta <- function(){
-#  tryCatch({
-#    site_data <- readr::read_csv("https://raw.githubusercontent.com/eco4cast/neon4cast-targets/main/NEON_Field_Site_Metadata_20220412.csv") 
-#    site_data %>% filter(as.integer(aquatics) == 1)
-#  }, error = function(e) {
-#    stop(paste("Failed to download site metadata:", e$message))
-#  })
-#}
-
-download_met_forecast <- function(forecast_date){
-  
-  # We want NOAA "reference_datetime" typically from yesterday (and retry older)
-  noaa_date <- lubridate::as_date(forecast_date) - lubridate::days(1)
-  
-  get_stage2 <- function(d) {
-    tryCatch(
-      neon4cast::noaa_stage2(start_date = as.character(d)),
-      error = function(e) NULL
-    )
-  }
-  
-  df_future <- get_stage2(noaa_date)
-  
-  # Retry one more day back if missing
-  if (is.null(df_future) || nrow(df_future) == 0) {
-    warning(paste("No NOAA forecast drivers for", as.character(noaa_date),
-                  "- retrying", as.character(noaa_date - lubridate::days(1))))
-    noaa_date <- noaa_date - lubridate::days(1)
-    df_future <- get_stage2(noaa_date)
-  }
-  
-  # If still missing, fail gracefully with a clear message
-  if (is.null(df_future) || nrow(df_future) == 0) {
-    stop(paste("No NOAA forecast drivers available for", as.character(noaa_date),
-               "(and previous day). Try running later or check driver availability."))
-  }
-  
-  met_future <- df_future |>
-    dplyr::filter(datetime >= lubridate::as_datetime(forecast_date),
-                  variable == "air_temperature") |>
-    dplyr::collect() |>
-    mutate(datetime = lubridate::as_date(datetime)) |>
-    group_by(datetime, site__id, parameter) |>
-    summarize(air_temperature = mean(prediction), .groups = "drop") |>
-    select(datetime, site_id, air_temperature, parameter)
-  
-  return(met_future)
+download_site_meta <- function(){
+  site_data <- readr::read_csv("https://raw.githubusercontent.com/eco4cast/neon4cast-targets/main/NEON_Field_Site_Metadata_20220412.csv") 
+  site_data %>% filter(as.integer(aquatics) == 1)
 }
-             
+
 
 ##' append historical meteorological data into target file
 ##' @param target targets dataframe
@@ -68,12 +19,6 @@ merge_met_past <- function(target){
   
   ## connect to data
   df_past <- neon4cast::noaa_stage3()
-  if (is.null(df_past) || nrow(df_past) == 0) {
-    warning("No NOAA historical data available, continuing with available target data only")
-    # Return target as-is without merging met data
-    return(target)
-  }
-  
   
   ## filter for site and variable
   sites <- unique(target$site_id)
@@ -117,19 +62,6 @@ download_met_forecast <- function(forecast_date){
   
   ## connect to data
   df_future <- neon4cast::noaa_stage2(start_date = as.character(noaa_date))
-  if (is.null(df_future) || nrow(df_future) == 0) {
-    warning(paste("No NOAA forecast data available for date:", noaa_date, 
-                  "Attempting to use earlier date..."))
-    # Try previous day if current day fails
-    noaa_date <- noaa_date - lubridate::days(1)
-    df_future <- neon4cast::noaa_stage2(start_date = as.character(noaa_date))
-  }
-  
-  ## filter available forecasts by date and variable
-  met_future <- df_future |> 
-    dplyr::filter(datetime >= lubridate::as_datetime(forecast_date), 
-                  variable == "air_temperature") |> 
-    dplyr::collect()
   
   ## filter available forecasts by date and variable
   met_future <- df_future |> 
@@ -147,6 +79,3 @@ download_met_forecast <- function(forecast_date){
   
   return(met_future)
 }
-
-
-### OWNER
